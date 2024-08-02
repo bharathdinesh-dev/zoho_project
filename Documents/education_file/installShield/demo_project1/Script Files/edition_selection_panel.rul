@@ -1,0 +1,98 @@
+// control identifiers
+
+#define NEXT1    1368
+
+#define BACK1   1369
+
+prototype NUMBER CustomDialog1();
+function NUMBER CustomDialog1()
+BOOL bDone;
+NUMBER nControl,nResult,nReturn,hwndDlg,svStandardId,svCommunityId,svProfId,svEnterId;
+//string svEmail,emailPattern,svPhone,phonePattern;
+//OBJECT oRegEx,oRegEx1;   
+//BOOL MatchFound,MatchFound1;
+
+begin
+    // Your dialog logic here
+    svStandardId=1326;
+    svCommunityId=1324;
+    svProfId=1327;
+    svEnterId=1325;
+    
+    EzDefineDialog("Edition_Selection_wizard", ISUSER, "Edition_Selection_wizard", 0);
+    
+	//MessageBox("test msg box",STRING);
+    while (!bDone)
+
+ 
+
+	nControl = WaitOnDialog("Edition_Selection_wizard");
+	//MessageBox(nControl,INFORMATION);
+	 
+
+	switch (nControl)
+
+	 
+
+		case DLG_INIT:
+
+			// Initialize the back, next, and cancel button enable/disable
+
+			// states for this dialog and replace %P, %VS, %VI with
+
+			// IFX_PRODUCT_DISPLAY_NAME, IFX_PRODUCT_DISPLAY_VERSION, and
+
+			// IFX_INSTALLED_DISPLAY_VERSION, respectively, on control IDs 700-724 and 202.
+
+			hwndDlg = CmdGetHwndDlg("Edition_Selection_wizard");
+
+			SdGeneralInit("Edition_Selection_wizard", hwndDlg, 0, "");
+
+	 
+
+		case BACK1:
+
+			// user clicked Back
+
+			nReturn = BACK1;
+            
+			bDone = TRUE;
+
+	 
+
+		case NEXT1:
+
+			// user clicked Next
+            
+			nReturn = NEXT1;
+			bDone = TRUE;
+	 
+
+	 
+
+		default:
+
+			// check standard control handling
+
+			if (SdIsStdButton(nControl) && SdDoStdButton(nControl)) then
+
+				bDone = TRUE;
+
+			endif;
+
+	 
+
+	endswitch;
+
+	 
+	endwhile;
+	EndDialog("Edition_Selection_wizard");
+
+	ReleaseDialog("Edition_Selection_wizard");
+	return nReturn;
+	
+	
+end;
+
+
+//custom dialog1

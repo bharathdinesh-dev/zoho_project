@@ -1,0 +1,36 @@
+1. Rename the title of all the panels as the combination of panel names and their product name.
+Validate if the user has an administrator privileges to install and display message. If not, proceed the installation only for admin users. Else, abort the installation.
+2. Get the machine's 'SystemInfo' to identify the operating platform of the target computer, validate and proceed with the installation only if the operating platform of the machine is 64-bit. Else, abort the installation.
+3. Welcome Panel - Create a welcome wizard and display some basic information about your product and the machine's 'SystemInfo'. Also, perform the below:
+Disable back button in the Welcome panel.
+Change bitmap image of the Welcome panel
+4. Create a License wizard and load any sample license file.
+5. Create a Destination wizard and validate the destination path.
+Display message "Kindly provide a different location for installation" if the destination path already exists. Do not proceed further until valid destination directory is provided by the user.
+6. Create an User Input Registration wizard with the below parameters as the input fields.
+Name 
+Phone Number
+E-mail ID
+Country
+Company
+Validate the following fields:
+Add empty value check validation for all the input fields.
+Validate 'E-mail ID' with regular expression.
+Validate 'Phone Number' with regular expression to match the standard 10 digit phone number
+7. Edition selection Panel - Create a wizard with below options as radio buttons. Based on the selection, invoke corresponding batch script and display the return exit value:
+Community Edition
+Enterprise Edition
+Standard Edition
+Professional Edition
+ 8. Summary Information
+Display the user information and selected edition information which was retrieved from Registration & Edition Selection Panels 
+Available disk space details
+Installation Directory
+9. Create the below new keys and set values in registry default root under product guid (Globally Unique Identifier) 
+webserver_Port=<port>
+product_version=v1
+product_name=<productname>
+10.
+i)Create a file (<productname>_details.txt>) in installation directory and write the registration panel and edition.
+ii) Finish Panel - Create a wizard with two checkboxes with the below options: 
+View ReadMe File   - Launch the README.html file from installation directory ( target directory) which shows information about the product

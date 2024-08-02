@@ -1,0 +1,25 @@
+prototype NUMBER ValidateRegistrationFields();
+function NUMBER ValidateRegistrationFields()
+
+STRING szName, szPhoneNumber, szEmail, szCountry, szCompany;
+
+// Get the values from the input fields
+/*CtrlGetText(DLG_USERINPUT, IDC_NAME, szName);
+CtrlGetText(DLG_USERINPUT, IDC_PHONE, szPhoneNumber);
+CtrlGetText(DLG_USERINPUT, IDC_EMAIL, szEmail);
+CtrlGetText(DLG_USERINPUT, IDC_COUNTRY, szCountry);
+CtrlGetText(DLG_USERINPUT, IDC_COMPANY, szCompany);*/
+
+
+// Check if any field is empty
+if (IsEmpty(szName) || IsEmpty(szPhoneNumber) || IsEmpty(szEmail) || IsEmpty(szCountry) || IsEmpty(szCompany)) then
+    MessageBox("All fields are required. Please fill in all the fields.", WARNING);
+    return FALSE;
+//}}IS_SCRIPT_TAG(Dlg_SdRegisterUser)
+    if (nResult = BACK) then goto Dlg_SdLicense2;
+    elseif (nResult = NEXT) then goto Dlg_customDlg1;
+    endif;    
+endif;
+
+return TRUE;
+end;

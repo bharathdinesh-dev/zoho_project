@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="C:\Program Files (x86)\InstallShield\2024\Support\0409\buildreport.xsl"?>
+<BuildReport ProductName="Install_script_msi" ProductVersion="1.00.0000" Built="7-28-2024 08-10-08 PM" Config="Product Configuration 1" Media="Release 1" Uncompressed="0.00 MB">
+  <Features>
+    <Feature Title="DefaultFeature">DefaultFeature</Feature>
+    <Feature Title="##IDS_FEATURE_DISPLAY_NAME2##">New_Feature</Feature>
+  </Features>
+  <Components>
+    <Component x64="32">DefaultComponent</Component>
+  </Components>
+  <Prerequisites />
+  <MergeModules />
+  <DynamicLinks />
+  <Files />
+</BuildReport>

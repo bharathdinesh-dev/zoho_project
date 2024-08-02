@@ -1,0 +1,115 @@
+//===========================================================================
+//
+//  File Name:    Setup.rul
+//
+//  Description:  Blank setup main script file
+//
+//  Comments:     Blank setup is an empty setup project. If you want to
+//				  create a new project via. step-by step instructions use the
+//				  Project Assistant.
+//
+//===========================================================================
+
+// Included header files ----------------------------------------------------
+#include "ifx.h"
+
+// Note: In order to have your InstallScript function executed as a custom
+// action by the Windows Installer, it must be prototyped as an 
+// entry-point function.
+
+// The keyword export identifies MyFunction() as an entry-point function.
+// The argument it accepts must be a handle to the Installer database.
+    
+/* export prototype MyFunction(HWND); */
+
+// Welcome ------------------------------------------------------------------
+function Welcome(szTitle, nReserved)
+    string szAppKey, szNil;
+    number nId;
+    BOOL bDone;
+    HWND hDlg;
+begin
+
+    // record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_WELCOME, "", nDlgWelcome);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_WELCOME, "", "", DLG_WELCOME_ID) = DLG_ERR) then
+        return -1;
+    endif;
+
+    Disable( BACKBUTTON );
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog(DLG_WELCOME);
+
+        switch(nId)
+
+        case DLG_INIT:
+
+            hDlg = CmdGetHwndDlg(DLG_WELCOME);
+            if(szSdProduct = "") then
+                szSdProduct = " ";
+            endif;
+            SdGeneralInit(DLG_WELCOME, hDlg, 0, szSdProduct);
+
+            SdSetDlgTitle(DLG_WELCOME, hDlg, szTitle);
+
+        case SD_PBUT_CONTINUE:
+
+            nId    = NEXT;
+            bDone  = TRUE;
+
+        case SD_PBUT_BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            nId    = ISERR_GEN_FAILURE;
+            SdError(nId, DLG_WELCOME);
+            bDone  = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                bDone = TRUE;
+            endif;
+
+        endswitch;
+
+    endwhile;
+
+    // Cleanup Dialog
+    EndDialog(DLG_WELCOME);
+    ReleaseDialog(DLG_WELCOME);
+    SdUnInit();
+    Enable( BACKBUTTON );
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_WELCOME, "", nDlgWelcome);
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+    endif;
+
+    return nId;
+
+end;

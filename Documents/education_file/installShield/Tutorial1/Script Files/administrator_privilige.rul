@@ -1,0 +1,9 @@
+function IsAdmin(): BOOLEAN;
+begin
+    if (Is(USER_ADMINISTRATOR) = TRUE) then
+        return TRUE;
+    else
+        MessageBox("Administrator privileges are required to install this product.", SEVERE);
+        abort;
+    endif;
+end;

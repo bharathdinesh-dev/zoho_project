@@ -1,0 +1,1208 @@
+//===========================================================================
+//
+//  File Name:    Setup.rul
+//
+//  Description:  Blank setup main script file
+//
+//  Comments:     Blank setup is an empty setup project. If you want to
+//				  create a new project via. step-by step instructions use the
+//				  Project Assistant.
+//
+//===========================================================================
+
+// Included header files ----------------------------------------------------
+#include "ifx.h"
+#include "edition_selection_panel.rul"
+
+//---------------------------------------------------------------------------                                                                        
+// OnFirstUIBefore
+//
+// First Install UI Sequence - Before Move Data
+//
+// The OnFirstUIBefore event is called by OnShowUI when the setup is
+// running in first install mode. By default this event displays UI allowing
+// the end user to specify installation parameters.
+//
+// Note: This event will not be called automatically in a
+// program...endprogram style setup.
+//---------------------------------------------------------------------------
+
+
+function OnFirstUIBefore()
+    number  nResult, nLevel, nSize, nSetupType;
+    string  szTitle, szMsg, szOpt1, szOpt2, szLicenseFile;
+    string  szName, szCompany, szTargetPath, szDir, szFeatures;
+    BOOL    bLicenseAccepted;
+
+begin	
+	/*
+	
+	CheckAdminPrivileges();
+	CheckSystemInfo();
+	
+	
+	STRING szInfo;
+	szInfo = GetSystemInfo();
+*/
+	// Set the system info to the control
+	//CtrlSetText(DLG_WELCOME, IDC_SYSINFO, szInfo);
+    // Added in InstallShield 15 - Show an appropriate error message if
+    // -removeonly is specified and the product is not installed.
+    if( REMOVEONLY ) then
+        Disable( DIALOGCACHE );
+		szMsg = SdLoadString( IDS_IFX_ERROR_PRODUCT_NOT_INSTALLED_UNINST );
+   		SdSubstituteProductInfo( szMsg );
+		MessageBox( szMsg, SEVERE );
+		abort;
+    endif;
+    //DisplaySystemInfo();
+    nSetupType = COMPLETE;	
+    szDir = TARGETDIR;
+    szName = "";
+    szCompany = "";
+    bLicenseAccepted = FALSE;
+
+// Beginning of UI Sequence
+Dlg_Start:
+    nResult = 0;
+
+Dlg_SdWelcome:
+    szTitle = "WELCOME TO SHOPPING CART";
+    szMsg = "";
+    //{{IS_SCRIPT_TAG(Dlg_SdWelcome)
+    nResult = SdWelcome( szTitle, szMsg );
+    //}}IS_SCRIPT_TAG(Dlg_SdWelcome)
+    if (nResult = NEXT)then  goto Dlg_SdLicense2;
+    endif;
+    Disable( BACKBUTTON );
+    
+
+Dlg_SdLicense2:
+    szTitle = "LICENSE AGREEMENT SHOPPING CART";
+    szOpt1 = "";
+    szOpt2 = "";
+    //{{IS_SCRIPT_TAG(License_File_Path)
+    szLicenseFile = SUPPORTDIR ^ "License.rtf";
+    //}}IS_SCRIPT_TAG(License_File_Path)
+    //{{IS_SCRIPT_TAG(Dlg_SdLicense2)
+    nResult = SdLicense2Ex( szTitle, szOpt1, szOpt2, szLicenseFile, bLicenseAccepted, TRUE );
+    //}}IS_SCRIPT_TAG(Dlg_SdLicense2)
+    if (nResult = BACK) then
+        goto Dlg_SdWelcome;
+    elseif (nResult = NEXT) then goto Dlg_SdRegisterUser;    
+    else
+        bLicenseAccepted = TRUE;
+    endif;
+
+Dlg_SdRegisterUser:
+    szMsg = "";
+    szTitle = "USER REGISTER SHOPPING CART";
+    //{{IS_SCRIPT_TAG(Dlg_SdRegisterUser)	
+    nResult = SdRegisterUser( szTitle, szMsg, szName, szCompany );
+    //}}IS_SCRIPT_TAG(Dlg_SdRegisterUser)
+    if (nResult = BACK) then goto Dlg_SdLicense2;
+    elseif (nResult = NEXT) then goto Dlg_customDlg1;
+    endif;
+    
+Dlg_customDlg1:
+	szTitle="USER CUSTOM SHOPPING CART";
+	nResult=CustomDialog1();
+	if( nResult = BACK ) then 
+		goto Dlg_SdRegisterUser;
+	elseif(nResult =NEXT) then
+		goto Dlg_SetupType2;
+	endif;		
+  
+Dlg_SetupType2:   
+    szTitle = "SETUP SHOPPING CART";
+    szMsg = "";
+    nResult = CUSTOM;
+    //{{IS_SCRIPT_TAG(Dlg_SetupType2)	
+    nResult = SetupType2( szTitle, szMsg, "", nSetupType, 0 );
+    //}}IS_SCRIPT_TAG(Dlg_SetupType2)
+    if (nResult = BACK) then
+        goto Dlg_SdRegisterUser;
+    else
+        nSetupType = nResult;
+        if (nSetupType != CUSTOM) then
+            szTargetPath = TARGETDIR;
+            nSize = 0;
+            FeatureCompareSizeRequired( MEDIA, szTargetPath, nSize );
+            if (nSize != 0) then      
+                MessageBox( szSdStr_NotEnoughSpace, WARNING );
+                goto Dlg_SetupType2;
+            endif;
+        endif;   
+    endif;
+
+Dlg_SdAskDestPath2:
+    if ((nResult = BACK) && (nSetupType != CUSTOM)) goto Dlg_SetupType2;
+	szTitle = "DESTINATION SHOPPING CART";
+    szMsg = "";
+    if (nSetupType = CUSTOM) then
+                //{{IS_SCRIPT_TAG(Dlg_SdAskDestPath2)	
+		nResult = SdAskDestPath2( szTitle, szMsg, szDir );
+                //}}IS_SCRIPT_TAG(Dlg_SdAskDestPath2)
+        TARGETDIR = szDir;
+    endif;
+    if (nResult = BACK) goto Dlg_SetupType2;
+
+Dlg_SdFeatureTree: 
+    if ((nResult = BACK) && (nSetupType != CUSTOM)) goto Dlg_SdAskDestPath2;
+    szTitle = "FEATURE SHOPPING CART";
+    szMsg = "";
+    szFeatures = "";
+    nLevel = 2;
+    if (nSetupType = CUSTOM) then
+        //{{IS_SCRIPT_TAG(Dlg_SdFeatureTree)	
+        nResult = SdFeatureTree( szTitle, szMsg, TARGETDIR, szFeatures, nLevel );
+        //}}IS_SCRIPT_TAG(Dlg_SdFeatureTree)
+        if (nResult = BACK) goto Dlg_SdAskDestPath2;  
+    endif;
+
+Dlg_SQLServer:
+    nResult = OnSQLServerInitialize( nResult );
+    if( nResult = BACK ) goto Dlg_SdFeatureTree;
+
+Dlg_ObjDialogs:
+    nResult = ShowObjWizardPages( nResult );
+    if (nResult = BACK) goto Dlg_SQLServer;
+    
+
+Dlg_SdStartCopy2:
+    szTitle = "INSTALL AREA SHOPPING CART";
+    szMsg = "";
+    //{{IS_SCRIPT_TAG(Dlg_SdStartCopy2)	
+    nResult = SdStartCopy2( szTitle, szMsg );	
+    //}}IS_SCRIPT_TAG(Dlg_SdStartCopy2)
+    if (nResult = BACK) goto Dlg_ObjDialogs;
+
+    // Added in 11.0 - Set appropriate StatusEx static text.
+    SetStatusExStaticText( SdLoadString( IDS_IFX_STATUSEX_STATICTEXT_FIRSTUI ) );
+ 
+    return 0;
+end;
+/*
+
+//administrator checking
+function CheckAdminPrivileges()
+NUMBER nResult;
+begin
+  if (Is(Required Execution level, "") != Administrator) then
+    MessageBox("You need to be an administrator to install this product.", SEVERE);
+    abort;
+  endif;
+end;
+
+//64bit check
+function CheckSystemInfo()
+STRING szSysInfo;
+begin
+  GetSystemInfo(szSysInfo, SYSINFO_PLATFORM);
+  if (szSysInfo != "x64") then
+    MessageBox("This product can only be installed on a 64-bit operating system.", SEVERE);
+    abort;
+  endif;
+end;
+
+*/
+
+
+// Welcome ------------------------------------------------------------------
+function Welcome(szTitle, nReserved)
+    string szAppKey, szNil;
+    number nId;
+    BOOL bDone;
+    HWND hDlg;
+begin
+	
+    // record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_WELCOME, "", nDlgWelcome);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_WELCOME, "", "", DLG_WELCOME_ID) = DLG_ERR) then
+        return -1;
+    endif;
+
+    Disable( BACKBUTTON );
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog(DLG_WELCOME);
+
+        switch(nId)
+
+        case DLG_INIT:
+
+            hDlg = CmdGetHwndDlg(DLG_WELCOME);
+            if(szSdProduct = "") then
+                szSdProduct = " ";
+            endif;
+            SdGeneralInit(DLG_WELCOME, hDlg, 0, szSdProduct);
+
+            SdSetDlgTitle(DLG_WELCOME, hDlg, szTitle);
+
+        case SD_PBUT_CONTINUE:
+
+            nId    = NEXT;
+            bDone  = TRUE;
+
+        case SD_PBUT_BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            nId    = ISERR_GEN_FAILURE;
+            SdError(nId, DLG_WELCOME);
+            bDone  = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                bDone = TRUE;
+            endif;
+
+        endswitch;
+
+    endwhile;
+
+    // Cleanup Dialog
+    EndDialog(DLG_WELCOME);
+    ReleaseDialog(DLG_WELCOME);
+    SdUnInit();
+    Enable( BACKBUTTON );
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_WELCOME, "", nDlgWelcome);
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+    endif;
+
+    return nId;
+
+end;
+
+//---------------------------------------------------------------------------
+// OnIISCheckRequirements
+//
+// The OnIISCheckRequirements event is called by Preprogram to make sure
+// that the requirements for IIS runtime are met
+//---------------------------------------------------------------------------
+function OnIISCheckRequirements()
+begin
+// obsolete function...moved to after the U.I. to determine user feature selection
+	// remove comments below to check for IIS at the very beginning of the install, similar to legacy behavior
+	OnIISInitialize();
+
+	// Pass in a component name in your project that contains IIS configuration
+	//IISRTCheckForContinue("VirtualDirComponent", FALSE);
+end;
+
+//---------------------------------------------------------------------------
+// OnAppSearch
+//
+// The OnAppSearch event is called after OnBegin and can be used to search
+// for previous versions of the current application. This event is called
+// only when the setup is running in first install mode.
+//
+// Note: This event will not be called automatically in a
+// program...endprogram style setup.
+//---------------------------------------------------------------------------
+function OnAppSearch()
+begin
+	// TODO: Search for previous versions of the application.
+end;
+
+//---------------------------------------------------------------------------
+// OnBegin
+//
+// The OnBegin event is called directly by the framework after the setup
+// initializes. Note that this event will be called AFTER "Initialization"
+// events (i.e.) OnSetTARGETDIR, OnCheckMediaPassword.
+//
+// Note: This event will not be called automatically in a
+// program...endprogram style setup.
+//---------------------------------------------------------------------------
+function OnBegin()
+begin
+    // TODO: Perform custom initialization steps, check requirements, etc.
+end;
+
+// SelectFolder -------------------------------------------------------------
+function SelectFolder(szTitle, szDefFolder, svResultFolder)
+    string szAppKey, svFolder, szNil;
+    number nId, nNil;
+    HWND hDlg, hEdit;
+    BOOL bDone;
+begin
+
+    // record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_SELECTFOLDER, "", nDlgSelectFolder);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        if((nId != BACK) && (nId != CANCEL)) then
+            SilentReadData(szAppKey, "szResultFolder", DATA_STRING, svResultFolder, nNil);
+        endif;
+
+        Disable(HOURGLASS);
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_SELECTFOLDER, "", "", DLG_SELECTFOLDER_ID) = DLG_ERR) then
+        Disable(HOURGLASS);
+        return ISERR_GEN_FAILURE;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog(DLG_SELECTFOLDER);
+
+        switch(nId)
+
+        case DLG_INIT:
+
+            svFolder = szDefFolder;
+
+            CtrlSetText(DLG_SELECTFOLDER, EDIT_FOLDER, svFolder);
+            CtrlPGroups(DLG_SELECTFOLDER, LIST_FOLDER);
+            CtrlSetCurSel(DLG_SELECTFOLDER, LIST_FOLDER, svFolder);
+
+            hDlg = CmdGetHwndDlg(DLG_SELECTFOLDER);
+            SdGeneralInit(DLG_SELECTFOLDER, hDlg, 0, szSdProduct);
+
+            SdSetDlgTitle(DLG_SELECTFOLDER, hDlg, szTitle);
+
+            Disable(HOURGLASS);
+
+        case LIST_FOLDER:
+
+            CtrlGetCurSel(DLG_SELECTFOLDER, LIST_FOLDER, svFolder);
+            CtrlSetText(DLG_SELECTFOLDER, EDIT_FOLDER, svFolder);
+
+            if(CtrlGetSubCommand(DLG_SELECTFOLDER) = LISTBOX_ENTER) then
+                if(SdVerifyFolder(svFolder) = ISERR_SUCCESS) then
+                    svResultFolder = svFolder;
+                    nId = NEXT;
+                    bDone = TRUE;
+                endif;
+            endif;
+
+        case SD_PBUT_CONTINUE:
+
+            CtrlGetText(DLG_SELECTFOLDER, EDIT_FOLDER, svFolder);
+
+            if(SdVerifyFolder(svFolder) = ISERR_SUCCESS) then
+                svResultFolder = svFolder;
+                nId = NEXT;
+                bDone = TRUE;
+            else
+                MessageBeep(0);
+                hEdit = CtrlGetDlgItem("", hDlg, EDIT_FOLDER);
+                SetFocus(hEdit);
+            endif;
+
+
+        case BACK:
+
+            nId = BACK;
+            bDone = TRUE;
+
+        case DLG_ERR:
+
+            nId    = ISERR_GEN_FAILURE;
+            SdError(ISERR_GEN_FAILURE, DLG_SELECTFOLDER);
+            bDone  = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                bDone = TRUE;
+            endif;
+            svResultFolder = svFolder;
+
+        endswitch;
+
+    endwhile;
+
+    // Cleanup Dialog
+    EndDialog(DLG_SELECTFOLDER);
+    ReleaseDialog(DLG_SELECTFOLDER);
+    SdUnInit();
+    Disable(HOURGLASS);
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_SELECTFOLDER, "", nDlgSelectFolder);
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        SilentWriteData(szAppKey, "szResultFolder", DATA_STRING, svResultFolder, nNil);
+    endif;
+
+    return nId;
+
+end;
+
+// SdCustomerInformation ----------------------------------------------------
+function  SdCustomerInformation( szTitle, svName, svCompany, nvUser )
+    string  szDlg, szTemp, szDefaultLabel, szTextSub;
+    number  nId, nMessage, nTemp, nSdDialog;
+    HWND    hwndDlg, hwndItem, hwndStatic, hwndRB1, hwndRB2, hwndNext;
+    BOOL    bDone, bDisableAllUserBtn, bDisablePerUserBtn;
+begin
+
+    szDlg     = SD_DLG_CUSTOMERINFO;
+    nSdDialog = SD_NDLG_CUSTOMERINFO;
+    szTextSub = "<USERNAME>";
+
+    // record data produced by this dialog
+    if(MODE=SILENTMODE) then
+        SdMakeName( szAppKey, szDlg, szTitle, nSdCustInfo );
+        SilentReadData( szAppKey, "Result", DATA_NUMBER, szTemp, nId );
+        SilentReadData( szAppKey, "szName", DATA_STRING, svName, nTemp );
+        SilentReadData( szAppKey, "szCompany", DATA_STRING, svCompany, nTemp );
+        SilentReadData( szAppKey, "nvUser", DATA_NUMBER, szTemp, nvUser);
+        IFX_PRODUCT_REGISTEREDOWNER = svName;
+        IFX_PRODUCT_REGISTEREDCOMPANY = svCompany;
+        ALLUSERS = nvUser;
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if( EzDefineDialog( szDlg, "", "", nSdDialog ) = DLG_ERR) then
+        return -1;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog( szDlg );
+
+        switch(nId)
+
+        case DLG_INIT:
+
+            // Init edit controls
+            if( !StrLengthChars( svName ) ) then
+                svName = IFX_PRODUCT_REGISTEREDOWNER;
+            endif;
+
+            if( !StrLengthChars( svCompany ) ) then
+                svCompany = IFX_PRODUCT_REGISTEREDCOMPANY;
+            endif;
+
+            CtrlSetText( szDlg, SD_EDIT_NAME, svName );
+            CtrlSetText( szDlg, SD_EDIT_COMPANY, svCompany );
+
+            // Init additional dialog controls.
+            hwndDlg = CmdGetHwndDlg( szDlg );
+            hwndNext = CtrlGetDlgItem("",  hwndDlg, NEXT );
+            SdGeneralInit( szDlg, hwndDlg, STYLE_BOLD, szSdProduct );
+            SdSetDlgTitle(szDlg, hwndDlg, szTitle);
+
+            // Disable per-user install button if appropriate
+            bDisablePerUserBtn = DISABLE_PERUSERBTN;
+            if(bDisablePerUserBtn) then
+                hwndItem = CtrlGetDlgItem("",  hwndDlg, IDC_RADIO_ME );
+                EnableWindow(hwndItem, FALSE);				
+            endif;
+
+            // Disable all-users install button if appropriate
+            bDisableAllUserBtn = ( !Is(USER_ADMINISTRATOR,"") && !Is(USER_POWERUSER,"") ) || DISABLE_ALLUSERBTN;
+            if(bDisableAllUserBtn) then
+                hwndItem = CtrlGetDlgItem("",  hwndDlg, IDC_RADIO_ALL );
+                EnableWindow(hwndItem, FALSE);	
+            endif;
+
+            // Init radio buttons
+            if(ALLUSERS) then
+                CtrlSetState (szDlg, IDC_RADIO_ALL, BUTTON_CHECKED);				
+            else
+                CtrlSetState (szDlg, IDC_RADIO_ME, BUTTON_CHECKED);	   
+            endif;
+
+            // Hide radio button if disabled.
+            if( HIDE_DISABLED_BTNS && ( bDisablePerUserBtn || bDisableAllUserBtn ) ) then
+                hwndStatic = CtrlGetDlgItem("",  hwndDlg, IDC_STATIC_USER );
+                ShowWindow( hwndStatic, SW_HIDE );
+                hwndRB1 = CtrlGetDlgItem("",  hwndDlg, IDC_RADIO_ALL );
+                ShowWindow( hwndRB1, SW_HIDE );
+                hwndRB2 = CtrlGetDlgItem("",  hwndDlg, IDC_RADIO_ME );
+                ShowWindow( hwndRB2, SW_HIDE );
+            endif;
+
+            // Store original label
+            CtrlGetText(szDlg, IDC_RADIO_ME, szDefaultLabel);
+    
+            // Update per-user control text
+            szTemp = szDefaultLabel;
+            StrReplace( szTemp, szTextSub, svName, 0);
+            CtrlSetText(szDlg, IDC_RADIO_ME, szTemp);
+
+        case SD_EDIT_NAME:
+
+            nMessage = CtrlGetSubCommand(szDlg);
+            if(nMessage = EDITBOX_CHANGE) then
+
+                // Update per-user control text.
+                CtrlGetText(szDlg, SD_EDIT_NAME, svName);
+                szTemp = szDefaultLabel;
+                StrReplace( szTemp, szTextSub, svName, 0);
+                CtrlSetText(szDlg, IDC_RADIO_ME, szTemp);
+    
+                // Enable/Disable next button
+                StrTrim( svCompany );
+                StrTrim( svName );
+                EnableWindow( hwndNext, StrLengthChars( svName ) && StrLengthChars( svCompany ) );
+
+            endif;
+
+        case SD_EDIT_COMPANY:
+
+            nMessage = CtrlGetSubCommand(szDlg);
+            if(nMessage = EDITBOX_CHANGE) then
+
+                CtrlGetText(szDlg, SD_EDIT_COMPANY, svCompany);
+    
+                // Enable/Disable next button
+                StrTrim( svCompany );
+                StrTrim( svName );
+                EnableWindow( hwndNext, StrLengthChars( svName ) && StrLengthChars( svCompany ) );
+
+            endif;
+
+
+        case NEXT:
+
+            nId    = NEXT;
+            bDone  = TRUE;
+
+        case BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            SdError( -1, "SdCustomerInformation" );
+            nId    = -1;
+            bDone  = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg( hwndDlg, nId, bDone );
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton( nId ) && SdDoStdButton( nId )) then
+                bDone = TRUE;
+            endif;
+
+        endswitch;
+
+    endwhile;
+
+    // Update ALLUSERS
+    if(CtrlGetState (szDlg, IDC_RADIO_ALL) = BUTTON_CHECKED) then
+        ALLUSERS = TRUE;
+        nvUser = 1;
+    else
+        ALLUSERS = FALSE;
+        nvUser = 0;
+    endif;
+
+    // Update script variables
+    IFX_PRODUCT_REGISTEREDOWNER = svName;
+    IFX_PRODUCT_REGISTEREDCOMPANY = svCompany;
+
+    // Cleanup Dialog
+    EndDialog( szDlg );
+    ReleaseDialog( szDlg );
+    SdUnInit();
+
+    // record data produced by this dialog
+    if(MODE=RECORDMODE) then
+        SdMakeName( szAppKey, szDlg, szTitle, nSdCustInfo );
+        SilentWriteData( szAppKey, "szName", DATA_STRING, svName, 0 );
+        SilentWriteData( szAppKey, "szCompany", DATA_STRING, svCompany, 0 );
+        SilentWriteData( szAppKey, "nvUser", DATA_NUMBER, "", nvUser);
+        SilentWriteData( szAppKey, "Result", DATA_NUMBER, "", nId );
+    endif;
+
+    return nId;
+
+end;
+
+// EnterLoginInfo -----------------------------------------------------------
+function EnterLoginInfo(szMsg, svUser, svPassword)
+    number nId, nLen, nStyle, nNil;
+    string szAppKey, szNil, szCaption, szTitle;
+    BOOL bDone;
+    HWND hDlg, hEditName, hEditPassword;
+begin
+
+    // record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_ENTERLOGIN, "", nDlgEnterLogin);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        if((nId != BACK) && (nId != CANCEL)) then
+            SilentReadData( szAppKey, "szUser", DATA_STRING, svUser, nNil );
+            SilentReadData( szAppKey, "szPass", DATA_STRING, svPassword, nNil );
+        endif;
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_ENTERLOGIN, "", "", DLG_ENTERLOGIN_ID) = DLG_ERR) then
+        return ISERR_GEN_FAILURE;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+    
+        nId = WaitOnDialog(DLG_ENTERLOGIN);
+
+        switch (nId)
+
+        case DLG_INIT:
+
+            // Set Defaults
+            CtrlSetText(DLG_ENTERLOGIN, SD_EDIT_NAME, svUser);
+            CtrlSetText(DLG_ENTERLOGIN, SD_EDIT_PASSWORD, svPassword);
+
+            nLen = StrLengthChars(svUser);
+            if(nLen = 0) then
+                nLen = Resize(svUser, 256);
+            endif;
+
+            nLen = StrLengthChars(svPassword);
+            if(nLen = 0) then
+                nLen = Resize(svPassword, 256);
+            endif;
+
+            if(szMsg != "") then
+                CtrlSetText(DLG_ENTERLOGIN, STATIC_TEXT, szMsg);
+            endif;
+
+            hDlg = CmdGetHwndDlg(DLG_ENTERLOGIN);
+            SdGeneralInit(DLG_ENTERLOGIN, hDlg, 0, szSdProduct);
+
+            szTitle = GetDialogTitle(DLG_ASK_TEXT);
+            SdSetDlgTitle(DLG_ENTERLOGIN, hDlg, szTitle);
+            
+            hEditName = CtrlGetDlgItem("", hDlg, SD_EDIT_NAME);
+            if(nLen < 255) then
+                nLen = 255;
+            endif;
+            SendMessage(hEditName, EM_LIMITTEXT, nLen-1, 0);
+
+            hEditPassword = CtrlGetDlgItem("", hDlg, SD_EDIT_PASSWORD);
+            if(nLen < 255) then
+                nLen = 255;
+            endif;
+            SendMessage(hEditPassword, EM_LIMITTEXT, nLen-1, 0);
+
+            nStyle = GetWindowLong(hEditPassword, GWL_STYLE);
+            nStyle = (nStyle & ~ES_OEMCONVERT);
+            SetWindowLong(hEditPassword, GWL_STYLE, nStyle);
+
+        case SD_PBUT_CONTINUE:
+
+            CtrlGetText(DLG_ENTERLOGIN, SD_EDIT_NAME, svUser);
+            CtrlGetText(DLG_ENTERLOGIN, SD_EDIT_PASSWORD, svPassword);
+            nId   = NEXT;
+            bDone = TRUE;
+
+        case SD_PBUT_BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            nId   = ISERR_GEN_FAILURE;
+            SdError(nId, DLG_ENTERLOGIN);
+            bDone = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                if((nId != SD_EDIT_NAME) && (nId != SD_EDIT_PASSWORD)) then
+                    bDone = TRUE;
+                endif;
+            endif;
+
+            CtrlGetText(DLG_ENTERLOGIN, SD_EDIT_NAME, svUser);
+            CtrlGetText(DLG_ENTERLOGIN, SD_EDIT_PASSWORD, svPassword);
+
+        endswitch;
+
+    endwhile;
+
+    EndDialog(DLG_ENTERLOGIN);
+    ReleaseDialog(DLG_ENTERLOGIN);
+    SdUnInit();
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_ENTERLOGIN, "", nDlgEnterLogin);
+        SilentWriteData( szAppKey, "szUser", DATA_STRING, svUser, nNil );
+        SilentWriteData( szAppKey, "szPass", DATA_STRING, svPassword, nNil );
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+    endif;
+
+    return nId;
+
+end;
+
+// AdminAskPath -------------------------------------------------------------
+function AdminAskPath(szMsg, szDefPath, svResultPath)
+    string szAppKey, svDir, szTitle, szNil, szNewCaption;
+    number nId, nTemp, nLen, nNil;
+    BOOL bDone;
+    HWND hDlg, hEdit;
+begin
+
+    // Record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_ASKPATH, "", g_nDlgAskPath);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        if((nId != BACK) && (nId != CANCEL)) then
+            SilentReadData(szAppKey, "szPath", DATA_STRING, svResultPath, nNil);
+        endif;
+        return nId;
+    endif;
+
+    // Ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_ASKPATH, "", "", DLG_ASKPATH_ID) = DLG_ERR) then
+        return ISERR_GEN_FAILURE;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+        
+        nId = WaitOnDialog(DLG_ASKPATH);
+
+        switch (nId)
+
+        case DLG_INIT:
+
+            CtrlSetText(DLG_ASKPATH, EDIT_TEXT, szDefPath);
+
+            nLen = StrLengthChars(svResultPath);
+            if(nLen = 0) then
+                Resize(svDir, MAX_PATH);
+                nLen = Resize(svResultPath, MAX_PATH);
+            endif;
+            svDir = szDefPath;
+
+            hDlg = CmdGetHwndDlg(DLG_ASKPATH);
+            SdGeneralInit(DLG_ASKPATH, hDlg, 0, szSdProduct);
+            
+            if(szMsg != "") then
+                CtrlSetText(DLG_ASKPATH, STATIC_TEXT, szMsg);
+            else
+                szMsg = SdLoadString(ISWI_DLG_ADMINASKPATH_MSG);                
+                CtrlSetText(DLG_ASKPATH, STATIC_TEXT, szMsg);
+                //force in Product name into text field
+                SdPlugInProductName(DLG_ASKPATH, hDlg, szSdProduct, STATIC_TEXT, 2);
+            endif;
+
+            hEdit = CtrlGetDlgItem( "", hDlg, EDIT_TEXT);
+            if(nLen < (MAX_PATH-1)) then
+                nLen = MAX_PATH - 1;
+            endif;
+            SendMessage(hEdit, EM_LIMITTEXT, nLen-2, 0);
+
+            szTitle = SdLoadString(ISWI_DLG_ADMINASKPATH_TITLE);
+            SdSetDlgTitle(DLG_ASKPATH, hDlg, szTitle);
+            
+            szNewCaption = SdLoadString(DLG_STR_TXT_INSTALL);
+            if(szNewCaption != "") then
+                szNewCaption = "&" + szNewCaption;
+                CtrlSetText(DLG_ASKPATH, NDLG_PBUT_OK, szNewCaption);
+            endif;
+
+        case SD_PBUT_BROWSE:
+
+            CtrlGetText(DLG_ASKPATH, EDIT_TEXT, svDir);
+            StrTrim(svDir);
+            SelectDir("", "", svDir, TRUE);
+            CtrlSetText(DLG_ASKPATH, EDIT_TEXT, svDir);
+
+        case SD_PBUT_CONTINUE:
+
+            CtrlGetText(DLG_ASKPATH, EDIT_TEXT, svDir);
+            StrTrim(svDir);
+            ParsePath(szNil, svDir, PATH);
+            if(szNil != svDir) then
+                PthFixPath(svDir, PthIsAbsPath(svDir));
+            endif;
+
+            svResultPath = svDir;
+            nId   = NEXT;
+            bDone = TRUE;
+
+        case SD_PBUT_BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            nId   = ISERR_GEN_FAILURE;
+            SdError(nId, DLG_ASKPATH);
+            bDone = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                if(nId != EDIT_TEXT) then
+                    bDone = TRUE;
+                endif;
+            endif;
+            svResultPath = svDir;
+
+        endswitch;
+
+    endwhile;
+
+    // Cleanup Dialog
+    EndDialog(DLG_ASKPATH);
+    ReleaseDialog(DLG_ASKPATH);
+    SdUnInit();
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_ASKPATH, "", g_nDlgAskPath);
+        SilentWriteData(szAppKey, "szPath", DATA_STRING, svResultPath, nNil);
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+    endif;
+
+    return nId;
+
+end;
+
+/*
+function DisplaySystemInfo()
+STRING szSysInfo;
+begin
+  GetSystemInfo(szSysInfo, SYSINFO_PLATFORM);
+  // Assume ID_TEXT_SYSINFO is the ID of the text control in Welcome dialog
+  CtrlSetText(DLG_WELCOME, ID_TEXT_SYSINFO, "Operating System: " + szSysInfo);
+end;*/ 
+
+
+// AskDestPath --------------------------------------------------------------
+function AskDestPath(szTitle, szMsg, svDir, nReserved)
+    string szAppKey, svDirLoc, szNil;
+    number nId, nTemp, nNil;
+    HWND hDlg;
+    BOOL bDone;
+begin
+
+    // record data produced by this dialog
+    if(MODE = SILENTMODE) then
+        SdMakeName(szAppKey, DLG_ASKDESTPATH, "", nDlgAskDestPath);
+        SilentReadData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        if((nId != BACK) && (nId != CANCEL)) then
+            SilentReadData(szAppKey, "szPath", DATA_STRING, svDir, nNil);
+        endif;
+
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if(EzDefineDialog(DLG_ASKDESTPATH, "", "", DLG_ASKDESTPATH_ID) = DLG_ERR) then
+        return ISERR_GEN_FAILURE;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog(DLG_ASKDESTPATH);
+
+        switch (nId)
+
+        case DLG_INIT:
+
+            svDirLoc = svDir;
+
+            CtrlSetText(DLG_ASKDESTPATH, 0x80000000 | STATIC_DIR, svDirLoc);
+
+            if(szMsg != "") then
+                CtrlSetText(DLG_ASKDESTPATH, STATIC_MSG, szMsg);
+            endif;
+
+            hDlg = CmdGetHwndDlg(DLG_ASKDESTPATH);
+            if(szSdProduct = "") then
+                szSdProduct = " ";
+            endif;
+            SdGeneralInit(DLG_ASKDESTPATH, hDlg, 0, szSdProduct);
+
+            SdSetDlgTitle(DLG_ASKDESTPATH, hDlg, szTitle);
+
+        case SD_PBUT_BROWSE:
+
+            SelectDir("", "", svDirLoc, TRUE);
+            CtrlSetText(DLG_ASKDESTPATH, 0x80000000 | STATIC_DIR, svDirLoc);
+
+        case SD_PBUT_CONTINUE:
+
+            svDir = svDirLoc;
+            nId   = NEXT;
+            bDone = TRUE;
+
+        case BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            nId   = ISERR_GEN_FAILURE;
+            SdError(nId, DLG_ASKDESTPATH);
+            bDone = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg(hDlg, nId, bDone);
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton(nId) && SdDoStdButton(nId)) then
+                bDone = TRUE;
+            endif;
+            svDir = svDirLoc;
+
+        endswitch;
+
+    endwhile;
+
+    // Cleanup Dialog
+    EndDialog(DLG_ASKDESTPATH);
+    ReleaseDialog(DLG_ASKDESTPATH);
+    SdUnInit();
+
+    // record data produced by this dialog
+    if(MODE = RECORDMODE) then
+        SdMakeName(szAppKey, DLG_ASKDESTPATH, "", nDlgAskDestPath);
+        SilentWriteData(szAppKey, "Result", DATA_NUMBER, szNil, nId);
+        SilentWriteData(szAppKey, "szPath", DATA_STRING, svDir, nNil);
+    endif;
+
+    return nId;
+
+end;
+
+// SdLicense2 ---------------------------------------------------------------
+function SdLicense2( szTitle, szOpt1, szOpt2, szLicenseFile, bLicenseAccepted )
+begin
+    return SdLicense2Ex( szTitle, szOpt1, szOpt2, szLicenseFile, bLicenseAccepted, FALSE );
+end;
+
+// SdRegisterUser -----------------------------------------------------------
+function  SdRegisterUser( szTitle, szMsg, svName, svCompany )
+    string  szDlg, szTemp;
+    number  nId, nMessage, nTemp, nSdDialog;
+    HWND    hwndDlg, hwndNext;
+    BOOL    bDone;
+begin
+
+    szDlg     = SD_DLG_REGISTERUSER;
+    nSdDialog = SD_NDLG_REGISTERUSER;
+
+    // record data produced by this dialog
+    if(MODE=SILENTMODE) then
+        SdMakeName( szAppKey, szDlg, szTitle, nSdRegisterUser );
+        SilentReadData( szAppKey, "Result", DATA_NUMBER, szTemp, nId );
+        SilentReadData( szAppKey, "szName", DATA_STRING, svName, nTemp );
+        SilentReadData( szAppKey, "szCompany", DATA_STRING, svCompany, nTemp );
+        IFX_PRODUCT_REGISTEREDOWNER = svName;
+        IFX_PRODUCT_REGISTEREDCOMPANY = svCompany;
+        return nId;
+    endif;
+
+    // ensure general initialization is complete
+    if(!bSdInit) then
+        SdInit();
+    endif;
+
+    if( EzDefineDialog( szDlg, "", "", SD_NDLG_REGISTERUSER ) = DLG_ERR) then
+        return -1;
+    endif;
+
+    // Loop in dialog until the user selects a standard button
+    bDone = FALSE;
+
+    while (!bDone)
+
+        nId = WaitOnDialog( szDlg );
+
+        switch(nId)
+
+        case DLG_INIT:
+
+            if( szMsg != "" ) then
+                SdSetStatic( szDlg, SD_STA_MSG, szMsg );
+            endif;
+
+            if( !StrLengthChars( svName ) ) then
+                svName = IFX_PRODUCT_REGISTEREDOWNER;
+            endif;
+
+            if( !StrLengthChars( svCompany ) ) then
+                svCompany = IFX_PRODUCT_REGISTEREDCOMPANY;
+            endif;
+
+            CtrlSetText( szDlg, SD_EDIT_NAME, svName );
+            CtrlSetText( szDlg, SD_EDIT_COMPANY, svCompany );
+
+            hwndDlg = CmdGetHwndDlg( szDlg );
+            hwndNext = CtrlGetDlgItem("",  hwndDlg, NEXT );
+            SdGeneralInit( szDlg, hwndDlg, STYLE_BOLD, szSdProduct );
+
+            SdSetDlgTitle(szDlg, hwndDlg, szTitle);
+
+        case SD_EDIT_NAME:
+
+            // Enable/Disable next button
+            nMessage = CtrlGetSubCommand(szDlg);
+            if(nMessage = EDITBOX_CHANGE) then
+                CtrlGetText(szDlg, SD_EDIT_NAME, svName);
+                StrTrim( svCompany );
+                StrTrim( svName );
+                EnableWindow( hwndNext, StrLengthChars( svName ) && StrLengthChars( svCompany ) );
+            endif;
+
+        case SD_EDIT_COMPANY:
+
+            // Enable/Disable next button
+            nMessage = CtrlGetSubCommand(szDlg);
+            if(nMessage = EDITBOX_CHANGE) then
+                CtrlGetText(szDlg, SD_EDIT_COMPANY, svCompany);
+                StrTrim( svCompany );
+                StrTrim( svName );
+                EnableWindow( hwndNext, StrLengthChars( svName ) && StrLengthChars( svCompany ) );
+            endif;
+
+        case NEXT:
+
+            nId    = NEXT;
+            bDone  = TRUE;
+
+        case BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case BACK:
+
+            nId    = BACK;
+            bDone  = TRUE;
+
+        case DLG_ERR:
+
+            SdError( -1, "SdRegisterUser" );
+            nId    = -1;
+            bDone  = TRUE;
+
+        case DLG_CLOSE:
+
+            SdCloseDlg( hwndDlg, nId, bDone );
+
+        default:
+
+            // check standard handling
+            if(SdIsStdButton( nId ) && SdDoStdButton( nId )) then
+                bDone = TRUE;
+            endif;
+
+        endswitch;
+
+    endwhile;
+
+    IFX_PRODUCT_REGISTEREDOWNER = svName;
+    IFX_PRODUCT_REGISTEREDCOMPANY = svCompany;
+
+    // Cleanup Dialog
+    EndDialog( szDlg );
+    ReleaseDialog( szDlg );
+    SdUnInit();
+
+    // record data produced by this dialog
+    if(MODE=RECORDMODE) then
+        SdMakeName( szAppKey, szDlg, szTitle, nSdRegisterUser );
+        SilentWriteData( szAppKey, "szName", DATA_STRING, svName, 0 );
+        SilentWriteData( szAppKey, "szCompany", DATA_STRING, svCompany, 0 );
+        SilentWriteData( szAppKey, "Result", DATA_NUMBER, "", nId );
+    endif;
+
+    return nId;
+
+end;
